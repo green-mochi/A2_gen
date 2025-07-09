@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFID卡複製指令生成器</title>
+    <style>
+        /* 全局變數 - 淺色主題 */
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3a0ca3;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --error-color: #e74c3c;
+            --background-color: #f8f9fa;
+            --card-background: #ffffff;
+            --text-color: #333333;
+            --text-secondary: #666666;
+            --border-color: #e0e0e0;
+            --shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+            --radius: 12px;
+            --input-bg: #ffffff;
+            --button-shadow: 0 4px 6px rgba(67, 97, 238, 0.15);
+            --theme-switch-bg: #e0e0e0;
+            --theme-switch-circle: #4361ee;
+            --alert-warning-bg: rgba(243, 156, 18, 0.15);
+            --alert-error-bg: rgba(231, 76, 60, 0.15);
+        }
+
+        /* 深色主題 */
+        [data-theme="dark"] {
+            --primary-color: #4cc9f0;
+            --secondary-color: #4895ef;
+            --success-color: #4ade80;
+            --warning-color: #fbbf24;
+            --error-color: #f87171;
+            --background-color: #121212;
+            --card-background: #1e1e1e;
+            --text-color: #f1f1f1;
+            --text-secondary: #b0b0b0;
+            --border-color: #333333;
+            --shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            --input-bg: #2d2d2d;
+            --button-shadow: 0 4px 6px rgba(76, 201, 240, 0.15);
+            --theme-switch-bg: #3a3a3a;
+            --theme-switch-circle: #f8f9fa;
+            --alert-warning-bg: rgba(251, 191, 36, 0.15);
+            --alert-error-bg: rgba(248, 113, 113, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            position: relative;
+            min-height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .theme-toggle {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background-color: var(--theme-switch-bg);
+            border-radius: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 0 5px;
+            justify-content: space-between;
+        }
+
+        .theme-toggle .icon {
+            font-size: 16px;
+            z-index: 1;
+            color: var(--text-color);
+        }
+
+        .theme-toggle::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background-color: var(--theme-switch-circle);
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        [data-theme="dark"] .theme-toggle::after {
+            transform: translateX(30px);
+        }
+
+        .container {
+            background-color: var(--card-background);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 32px;
+            margin-bottom: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .description {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-size: 1.1rem;
+        }
+
+        .alert {
+            padding: 16px;
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-weight: 500;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .alert-warning {
+            background-color: var(--alert-warning-bg);
+            color: var(--warning-color);
+            border: 1px solid var(--warning-color);
+        }
+
+        .alert-error {
+            background-color: var(--alert-error-bg);
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+        }
+
+        .alert-icon {
+            font-size: 1.2rem;
+            margin-top: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 1.05rem;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            transition: all 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+        }
+
+        .input-hint {
+            margin-top: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            flex: 1;
+            max-width: 200px;
+            box-shadow: var(--button-shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            opacity: 0;
+            border-radius: 100%;
+            transform: scale(1, 1) translate(-50%);
+            transform-origin: 50% 50%;
+        }
+
+        button:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        button:active::after {
+            animation: ripple 0.6s ease-out;
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(0, 0);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(100, 100);
+                opacity: 0;
+            }
+        }
+
+        .copy-btn {
+            background-color: var(--success-color);
+            max-width: 150px;
+        }
+
+        .copy-btn:hover {
+            background-color: #27ae60;
+        }
+
+        .clear-btn {
+            background-color: var(--error-color);
+            max-width: 150px;
+        }
+
+        .clear-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .loading {
+            display: none;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: conic-gradient(transparent, transparent, transparent, var(--primary-color));
+            -webkit-mask: radial-gradient(circle at center, transparent 55%, black 55%);
+            mask: radial-gradient(circle at center, transparent 55%, black 55%);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 12px;
+            border-radius: var(--radius);
+            margin-top: 16px;
+            display: none;
+            font-weight: 500;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status-success {
+            background-color: rgba(46, 204, 113, 0.15);
+            color: var(--success-color);
+        }
+
+        .status-error {
+            background-color: var(--alert-error-bg);
+            color: var(--error-color);
+        }
+
+        .result-section {
+            margin-top: 24px;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-content {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            word-break: break-all;
+            line-height: 1.6;
+            color: var(--text-color);
+            margin-bottom: 16px;
+            min-height: 60px;
+            white-space: pre-wrap;
+        }
+
+        .block-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .block-row:last-child {
+            border-bottom: none;
+        }
+
+        .block-data {
+            font-weight: 600;
+        }
+
+        .block-note {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .container {
+                padding: 24px;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                max-width: 100%;
+            }
+            
+            .theme-toggle {
+                width: 50px;
+                height: 26px;
+            }
+            
+            .theme-toggle::after {
+                width: 20px;
+                height: 20px;
+            }
+            
+            [data-theme="dark"] .theme-toggle::after {
+                transform: translateX(24px);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 16px;
+            }
+            
+            header {
+                margin-bottom: 20px;
+            }
+            
+            .description {
+                font-size: 0.95rem;
+            }
+            
+            .input-field {
+                padding: 12px;
+            }
+            
+            .header-container {
+                flex-direction: column;
+                align-items: flex-end;
+            }
+
+            .block-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <div class="app-container">
+        <div class="header-container">
+            <div></div>
+            <div class="theme-toggle" id="themeToggle" aria-label="切換主題">
+                <span class="icon">☀️</span>
+                <span class="icon">🌙</span>
+            </div>
+        </div>
+        
+        <div class="container">
+            <header>
+                <h1>NTAG可改卡號複製指令生成器</h1>
+                <p class="description">輸入7字節UID，自動生成NTAG/ultralight寫入指令</p>
+            </header>
+
+            <main>
+                <div class="alert alert-warning">
+                    <span class="alert-icon">⚠️</span>
+                    <div>
+                        <strong>重要提醒：</strong>生成的指令必須整串複製貼上，不可中斷或分開執行，否則可能導致卡片變磚。
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="cardNumber">卡號 (7 bytes UID)</label>
+                    <input 
+                        type="text" 
+                        id="cardNumber" 
+                        class="input-field" 
+                        placeholder="例如: 33 9e 0c 39 00 00 80"
+                        maxlength="20"
+                    >
+                    <div class="input-hint">
+                        請直接輸入7個字節的十六進制卡號，不區分大小寫
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button id="generateBtn">⚡ 生成指令</button>
+                    <button id="clearBtn" class="clear-btn">🗑️ 清除內容</button>
+                </div>
+
+                <div class="loading" id="loadingSpinner">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <div class="status-message" id="statusMessage"></div>
+
+                <div class="result-section" id="resultSection">
+                    <div class="form-group">
+                        <label>生成的指令</label>
+                        <div class="result-content" id="resultContent"></div>
+                        <div class="button-group">
+                            <button id="copyBtn" class="copy-btn">📋 複製指令</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <footer>
+            <p>© 2025 RFID卡複製指令生成器 | 專業工具，謹慎使用</p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM elements
+        const cardNumberInput = document.getElementById('cardNumber');
+        const generateBtn = document.getElementById('generateBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const statusMessage = document.getElementById('statusMessage');
+        const resultSection = document.getElementById('resultSection');
+        const resultContent = document.getElementById('resultContent');
+        const themeToggle = document.getElementById('themeToggle');
+
+        // Theme handling
+        function setTheme(isDark) {
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme) {
+                setTheme(savedTheme === 'dark');
+            } else {
+                setTheme(prefersDark);
+            }
+
+            themeToggle.addEventListener('click', function() {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                setTheme(currentTheme !== 'dark');
+            });
+        }
+
+        // Show status message
+        function showStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.className = 'status-message ' + (isError ? 'status-error' : 'status-success');
+            statusMessage.style.display = 'block';
+            
+            statusMessage.style.animation = 'none';
+            statusMessage.offsetHeight;
+            statusMessage.style.animation = 'fadeIn 0.3s ease-in-out';
+            
+            setTimeout(() => {
+                statusMessage.style.opacity = '0';
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                    statusMessage.style.opacity = '1';
+                }, 300);
+            }, 3000);
+        }
+
+        // BCC calculation
+        function calculateBCC(bytes_arr) {
+            return bytes_arr.reduce((bcc, byte) => bcc ^ byte, 0x00);
+        }
+
+        // Hex string to bytes
+        function hexToBytes(hex) {
+            const bytes = [];
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes.push(parseInt(hex.substr(i, 2), 16));
+            }
+            return bytes;
+        }
+
+        // Byte to hex string
+        function byteToHex(byte) {
+            return byte.toString(16).toUpperCase().padStart(2, '0');
+        }
+
+        // Validate UID
+        function validateUID(input) {
+            const cleaned = input.replace(/\s+/g, '');
+            if (cleaned.length !== 14) {
+                return { valid: false, error: 'UID必須是7個字節（14個十六進制字符）' };
+            }
+            
+            if (!/^[0-9A-Fa-f]{14}$/.test(cleaned)) {
+                return { valid: false, error: '請輸入有效的十六進制字符' };
+            }
+            
+            return { valid: true, cleaned };
+        }
+
+        // Generate command
+        function generateCommand() {
+            const input = cardNumberInput.value.trim();
+            
+            if (!input) {
+                showStatus('請輸入卡號', true);
+                return;
+            }
+
+            // Remove existing error alerts
+            const existingError = document.querySelector('.alert-error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            const validation = validateUID(input);
+            if (!validation.valid) {
+                showErrorAlert(validation.error);
+                return;
+            }
+
+            loadingSpinner.style.display = 'flex';
+            
+            setTimeout(() => {
+                try {
+                    const uidBytes = hexToBytes(validation.cleaned);
+                    
+                    // Build three blocks
+                    const block00 = [uidBytes[0], uidBytes[1], uidBytes[2], calculateBCC([uidBytes[0], uidBytes[1], uidBytes[2], 0x88])];
+                    const block01 = [uidBytes[3], uidBytes[4], uidBytes[5], uidBytes[6]];
+                    const block02 = [calculateBCC([uidBytes[3], uidBytes[4], uidBytes[5], uidBytes[6]]), 0x00, 0x00, 0x00];
+
+                    // Generate A2 commands
+                    const commands = [
+                        'A2:00:' + block00.map(byteToHex).join(':'),
+                        'A2:01:' + block01.map(byteToHex).join(':'),
+                        'A2:02:' + block02.map(byteToHex).join(':')
+                    ];
+
+                    const fullCommand = commands.join(',');
+                    
+                    // Display result with typing effect
+                    resultContent.textContent = '';
+                    let i = 0;
+                    const typeSpeed = Math.min(30, 800 / fullCommand.length);
+                    
+                    const typeWriter = () => {
+                        if (i < fullCommand.length) {
+                            resultContent.textContent += fullCommand.charAt(i);
+                            i++;
+                            setTimeout(typeWriter, typeSpeed);
+                        } else {
+                            loadingSpinner.style.display = 'none';
+                            showStatus('指令生成成功！', false);
+                        }
+                    };
+                    
+                    resultSection.classList.add('show');
+                    
+                    if (fullCommand.length > 80) {
+                        resultContent.textContent = fullCommand;
+                        loadingSpinner.style.display = 'none';
+                        showStatus('指令生成成功！', false);
+                    } else {
+                        typeWriter();
+                    }
+                    
+                } catch (error) {
+                    loadingSpinner.style.display = 'none';
+                    showStatus('生成過程發生錯誤：' + error.message, true);
+                    console.error(error);
+                }
+            }, 300);
+        }
+
+        // Show error alert
+        function showErrorAlert(message) {
+            const existingError = document.querySelector('.alert-error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-error';
+            errorAlert.innerHTML = `
+                <span class="alert-icon">❌</span>
+                <div><strong>錯誤：</strong>${message}</div>
+            `;
+            
+            const firstFormGroup = document.querySelector('.form-group');
+            firstFormGroup.parentNode.insertBefore(errorAlert, firstFormGroup);
+        }
+
+        // Copy to clipboard
+        function copyToClipboard() {
+            const text = resultContent.textContent;
+            if (!text.trim()) {
+                showStatus('沒有可複製的內容', true);
+                return;
+            }
+
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    showStatus('已複製到剪貼簿！', false);
+                    
+                    copyBtn.classList.add('clicked');
+                    setTimeout(() => {
+                        copyBtn.classList.remove('clicked');
+                    }, 600);
+                })
+                .catch(err => {
+                    showStatus('複製失敗：' + err.message, true);
+                    console.error(err);
+                });
+        }
+
+        // Clear content
+        function clearContent() {
+            cardNumberInput.style.opacity = '0';
+            resultContent.style.opacity = '0';
+            
+            setTimeout(() => {
+                cardNumberInput.value = '';
+                resultContent.textContent = '';
+                resultSection.classList.remove('show');
+                
+                // Remove error alerts
+                const errorAlert = document.querySelector('.alert-error');
+                if (errorAlert) {
+                    errorAlert.remove();
+                }
+                
+                cardNumberInput.style.opacity = '1';
+                resultContent.style.opacity = '1';
+                
+                statusMessage.style.display = 'none';
+                cardNumberInput.focus();
+            }, 200);
+        }
+
+        // Add ripple effect to buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                const rect = button.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const ripple = document.createElement('span');
+                ripple.style.position = 'absolute';
+                ripple.style.top = `${y}px`;
+                ripple.style.left = `${x}px`;
+                ripple.style.transform = 'translate(-50%, -50%)';
+                ripple.style.width = '0';
+                ripple.style.height = '0';
+                ripple.style.borderRadius = '50%';
+                ripple.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+                ripple.style.pointerEvents = 'none';
+                
+                button.appendChild(ripple);
+                
+                ripple.animate(
+                    [
+                        { opacity: 1, width: '0', height: '0' },
+                        { opacity: 0, width: '500px', height: '500px' }
+                    ],
+                    {
+                        duration: 600,
+                        easing: 'ease-out'
+                    }
+                ).onfinish = () => {
+                    ripple.remove();
+                };
+            });
+        });
+        
+        // Format input - fixed version
+        function formatInput(value) {
+            // Remove all non-hex characters except spaces
+            let cleaned = value.replace(/[^0-9A-Fa-f\s]/g, '');
+            
+            // Remove all spaces first
+            cleaned = cleaned.replace(/\s+/g, '');
+            
+            // Add spaces every 2 characters
+            let formatted = '';
+            for (let i = 0; i < cleaned.length; i += 2) {
+                if (i > 0) formatted += ' ';
+                formatted += cleaned.substring(i, i + 2);
+            }
+            
+            return formatted;
+        }
+
+        // Event listeners
+        generateBtn.addEventListener('click', generateCommand);
+        clearBtn.addEventListener('click', clearContent);
+        copyBtn.addEventListener('click', copyToClipboard);
+
+        // Input formatting
+        cardNumberInput.addEventListener('input', (e) => {
+            e.target.value = formatInput(e.target.value.trim())
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                generateCommand();
+            }
+            
+            if (e.key === 'Escape') {
+                clearContent();
+            }
+        });
+
+        // Also generate on Enter key
+        cardNumberInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                generateCommand();
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            cardNumberInput.focus();
+        });
+
+        // Error handling
+        window.addEventListener('error', function(e) {
+            console.error('Application error:', e.error);
+            showStatus('應用程式發生錯誤，請重新整理頁面', true);
+        });
+    </script>
+</body>
+</html>
