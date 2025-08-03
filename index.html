@@ -556,6 +556,10 @@
         const resultContent = document.getElementById('resultContent');
         const themeToggle = document.getElementById('themeToggle');
 
+        // 輸入法處理相關變數
+        let isComposing = false;
+        let lastInputValue = '';
+        
         // Theme handling
         function setTheme(isDark) {
             document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
@@ -767,6 +771,9 @@
                 
                 statusMessage.style.display = 'none';
                 cardNumberInput.focus();
+                
+                // 重置輸入相關變數
+                lastInputValue = '';
             }, 200);
         }
 
@@ -805,7 +812,7 @@
             });
         });
         
-        // Format input - fixed version
+        // Format input - 改進版
         function formatInput(value) {
             // Remove all non-hex characters except spaces
             let cleaned = value.replace(/[^0-9A-Fa-f\s]/g, '');
@@ -823,15 +830,61 @@
             return formatted;
         }
 
+        // 處理中文輸入法的問題
+        function handleInputChange(e) {
+            // 如果正在組合輸入（中文輸入法狀態），則不處理
+            if (isComposing) {
+                return;
+            }
+
+            const currentValue = e.target.value;
+            
+            // 防止重複處理相同的值
+            if (currentValue === lastInputValue) {
+                return;
+            }
+
+            const formatted = formatInput(currentValue);
+            
+            // 只有當格式化後的值與當前值不同時才更新
+            if (formatted !== currentValue) {
+                const selectionStart = e.target.selectionStart;
+                const originalLength = currentValue.length;
+                
+                e.target.value = formatted;
+                
+                // 嘗試保持游標位置
+                const newLength = formatted.length;
+                const lengthDiff = newLength - originalLength;
+                const newCursorPos = Math.min(selectionStart + lengthDiff, formatted.length);
+                
+                // 延遲設置游標位置，確保值已更新
+                setTimeout(() => {
+                    e.target.setSelectionRange(newCursorPos, newCursorPos);
+                }, 0);
+            }
+            
+            lastInputValue = formatted;
+        }
+
         // Event listeners
         generateBtn.addEventListener('click', generateCommand);
         clearBtn.addEventListener('click', clearContent);
         copyBtn.addEventListener('click', copyToClipboard);
 
-        // Input formatting
-        cardNumberInput.addEventListener('input', (e) => {
-            e.target.value = formatInput(e.target.value.trim())
+        // 輸入法事件處理
+        cardNumberInput.addEventListener('compositionstart', () => {
+            isComposing = true;
         });
+
+        cardNumberInput.addEventListener('compositionend', (e) => {
+            isComposing = false;
+            // 組合結束後處理輸入
+            handleInputChange(e);
+        });
+
+        // 輸入事件處理
+        cardNumberInput.addEventListener('input', handleInputChange);
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
@@ -846,7 +899,7 @@
 
         // Also generate on Enter key
         cardNumberInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !isComposing) {
                 generateCommand();
             }
         });
@@ -855,6 +908,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             initTheme();
             cardNumberInput.focus();
+            lastInputValue = cardNumberInput.value;
         });
 
         // Error handling
